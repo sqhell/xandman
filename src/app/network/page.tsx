@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   Activity,
   HardDrive,
@@ -7,15 +8,59 @@ import {
   Zap,
   Layers,
   TrendingUp,
+  Globe,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MetricCard } from "@/components/common/metric-card";
+import { WorldMap } from "@/components/charts/world-map";
 import { useNetworkStats } from "@/features/network/hooks/use-network-stats";
+import { usePNodes } from "@/features/pnodes/hooks/use-pnodes";
 import { formatBytes, formatPercentage, formatLatency } from "@/lib/utils";
+
+// Simulated geo-coordinates for data centers based on region
+const regionCoordinates: Record<string, [number, number]> = {
+  "US East": [-74.006, 40.7128],
+  "US West": [-122.4194, 37.7749],
+  "EU West": [-0.1276, 51.5074],
+  "EU Central": [13.405, 52.52],
+  "Asia Pacific": [139.6917, 35.6895],
+  Singapore: [103.8198, 1.3521],
+  "South America": [-43.1729, -22.9068],
+  Australia: [151.2093, -33.8688],
+};
 
 export default function NetworkPage() {
   const { data: stats, isLoading } = useNetworkStats();
+  const { data: pnodesData, isLoading: pnodesLoading } = usePNodes({ limit: 100 });
+
+  // Transform pNode data for the world map
+  const mapNodes = useMemo(() => {
+    if (!pnodesData?.pnodes) return [];
+
+    const regions = Object.keys(regionCoordinates);
+
+    return pnodesData.pnodes.map((node, index) => {
+      // Distribute nodes across regions based on index
+      const assignedRegion = node.region || regions[index % regions.length];
+      const baseCoords = regionCoordinates[assignedRegion] || regionCoordinates["US East"];
+
+      // Spread nodes within each region to avoid overlap
+      const spreadAngle = (index * 137.5) * (Math.PI / 180); // Golden angle for even distribution
+      const spreadRadius = 3 + (index % 5) * 2;
+
+      return {
+        publicKey: node.publicKey,
+        name: `${node.publicKey.slice(0, 4)}...${node.publicKey.slice(-4)}`,
+        coordinates: [
+          baseCoords[0] + Math.cos(spreadAngle) * spreadRadius,
+          baseCoords[1] + Math.sin(spreadAngle) * spreadRadius,
+        ] as [number, number],
+        status: node.status,
+        stake: node.storageCapacity / 1024 / 1024, // Convert to MB for visualization
+      };
+    });
+  }, [pnodesData]);
 
   return (
     <div className="space-y-8">
@@ -93,8 +138,7 @@ export default function NetworkPage() {
                   </div>
                   <span className="font-medium">
                     {formatPercentage(
-                      ((stats?.activePNodes || 0) / (stats?.totalPNodes || 1)) *
-                        100
+                      Math.min(100, ((stats?.activePNodes || 0) / (stats?.totalPNodes || 1)) * 100)
                     )}
                   </span>
                 </div>
@@ -285,6 +329,25 @@ export default function NetworkPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* World Map - Node Distribution */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Global Node Distribution
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {pnodesLoading ? (
+            <div className="h-[400px] flex items-center justify-center">
+              <Skeleton className="h-full w-full rounded-lg" />
+            </div>
+          ) : (
+            <WorldMap nodes={mapNodes} className="h-[400px]" />
+          )}
+        </CardContent>
+      </Card>
 
       {/* Last Updated */}
       {stats?.lastUpdated && (

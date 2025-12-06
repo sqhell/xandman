@@ -41,6 +41,12 @@ export function Header() {
           >
             Network
           </Link>
+          <Link
+            href="/storage"
+            className="transition-colors hover:text-foreground/80 text-foreground/60"
+          >
+            Storage
+          </Link>
         </nav>
 
         <div className="flex flex-1 items-center justify-end space-x-2">
@@ -83,6 +89,13 @@ export function Header() {
               onClick={() => setMobileMenuOpen(false)}
             >
               Network
+            </Link>
+            <Link
+              href="/storage"
+              className="text-sm font-medium transition-colors hover:text-foreground/80"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Storage
             </Link>
           </div>
         </nav>
