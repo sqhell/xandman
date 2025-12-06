@@ -330,31 +330,27 @@ export default function NetworkPage() {
         </Card>
       </div>
 
-      {/* World Map - Node Distribution */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            Global Node Distribution
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {pnodesLoading ? (
-            <div className="h-[400px] flex items-center justify-center">
-              <Skeleton className="h-full w-full rounded-lg" />
-            </div>
-          ) : (
-            <WorldMap nodes={mapNodes} className="h-[400px]" />
-          )}
-        </CardContent>
-      </Card>
-
       {/* Last Updated */}
       {stats?.lastUpdated && (
         <p className="text-sm text-muted-foreground text-center">
           Last updated: {new Date(stats.lastUpdated).toLocaleString()}
         </p>
       )}
+
+      {/* World Map - Node Distribution */}
+      <div>
+        <h3 className="flex items-center gap-2 text-lg font-semibold mb-4">
+          <Globe className="h-5 w-5" />
+          Global Node Distribution
+        </h3>
+        {pnodesLoading ? (
+          <div className="h-[400px] flex items-center justify-center">
+            <Skeleton className="h-full w-full rounded-lg" />
+          </div>
+        ) : (
+          <WorldMap nodes={mapNodes} className="h-[400px]" />
+        )}
+      </div>
     </div>
   );
 }
