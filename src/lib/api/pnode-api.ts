@@ -104,6 +104,9 @@ const devnetPNodeApi: PNodeApiInterface = {
         pnodes = pnodes.filter((p) => p.region === filters.region);
       }
 
+      // Sort by uptime descending (highest uptime first)
+      pnodes.sort((a, b) => b.uptime - a.uptime);
+
       const page = filters.page || 1;
       const limit = filters.limit || 25;
       const start = (page - 1) * limit;
