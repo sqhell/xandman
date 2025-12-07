@@ -29,20 +29,16 @@ export const OPEN_PRPC_NODES = [
   "207.244.255.1",
 ];
 
-// Get base URL for API calls (handles both client and server-side)
-function getApiBaseUrl(): string {
-  if (typeof window !== "undefined") {
-    // Client-side: use relative URL
-    return "";
-  }
-  // Server-side: use full URL
-  return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+// Get base path for API calls (handles basePath configuration)
+function getApiBasePath(): string {
+  // Use NEXT_PUBLIC_BASE_PATH if set, otherwise empty string for local dev
+  return process.env.NEXT_PUBLIC_BASE_PATH || "";
 }
 
 export async function getPNodeStats(ip: string): Promise<PNodeStats | null> {
   try {
-    const baseUrl = getApiBaseUrl();
-    const response = await fetch(`${baseUrl}/api/prpc?ip=${ip}`, {
+    const basePath = getApiBasePath();
+    const response = await fetch(`${basePath}/api/prpc?ip=${ip}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -63,8 +59,8 @@ export async function getAllPNodeStats(): Promise<
   Array<{ ip: string; stats: PNodeStats }>
 > {
   try {
-    const baseUrl = getApiBaseUrl();
-    const response = await fetch(`${baseUrl}/api/prpc?all=true`, {
+    const basePath = getApiBasePath();
+    const response = await fetch(`${basePath}/api/prpc?all=true`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
