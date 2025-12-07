@@ -242,7 +242,8 @@ const mockPNodeApi: PNodeApiInterface = {
 function prpcStatsToPNode(ip: string, stats: PNodeStats): PNode {
   const uptimePercent = Math.min(99.99, 95 + (stats.uptime / 86400) * 0.5); // Higher uptime = better %
   const storageUsed = stats.file_size;
-  const storageCapacity = stats.ram_total * 100; // Estimate capacity
+  // Estimate capacity as used + 30% headroom (since we don't have actual capacity from pRPC)
+  const storageCapacity = Math.round(storageUsed * 1.3);
 
   return {
     publicKey: ip.replace(/\./g, ""), // Use IP as identifier for now
@@ -254,8 +255,8 @@ function prpcStatsToPNode(ip: string, stats: PNodeStats): PNode {
     uptime: uptimePercent,
     uptimeHistory: [],
     storageUsed,
-    storageCapacity: Math.max(storageCapacity, storageUsed * 1.5),
-    storageUtilization: (storageUsed / Math.max(storageCapacity, storageUsed * 1.5)) * 100,
+    storageCapacity,
+    storageUtilization: (storageUsed / storageCapacity) * 100,
     shardsAvailable: stats.total_pages || Math.floor(storageUsed / (1024 * 1024 * 10)),
     shardsTotal: Math.floor(storageUsed / (1024 * 1024 * 10)) + 100,
     shardAvailability: 98,
