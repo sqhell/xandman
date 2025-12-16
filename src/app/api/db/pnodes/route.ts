@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getLatestPNodeSnapshots } from "@/lib/db/sync-service";
+import type { PNodeSnapshot } from "@prisma/client";
 
 // GET /api/db/pnodes - Get latest pNode data from database (fast!)
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
     }
 
     // Transform to PNode format expected by frontend
-    const pnodes = snapshots.map((snapshot) => ({
+    const pnodes = snapshots.map((snapshot: PNodeSnapshot) => ({
       publicKey: snapshot.ipAddress.replace(/\./g, ""),
       identity: `pNode-${snapshot.ipAddress}`,
       gossipAddress: `${snapshot.ipAddress}:6000`,
