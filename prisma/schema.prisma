@@ -1,0 +1,75 @@
+// Prisma schema for xandman pNode Analytics
+// Caches pRPC data for fast frontend access
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// pNode snapshot - stores current state of each pNode
+model PNodeSnapshot {
+  id              Int      @id @default(autoincrement())
+  ipAddress       String
+  status          String   @default("active")
+
+  // Storage metrics (in bytes)
+  fileSize        BigInt   // Actual storage used from pRPC
+  storageCapacity BigInt   // Estimated capacity
+  storageUsed     BigInt   // Same as fileSize
+
+  // Performance metrics
+  cpuPercent      Float
+  ramUsed         BigInt
+  ramTotal        BigInt
+  uptimeSeconds   BigInt
+
+  // Network metrics
+  activeStreams   Int
+  packetsReceived BigInt
+  packetsSent     BigInt
+
+  // Metadata
+  region          String?
+  version         String   @default("pRPC-1.0")
+  lastUpdated     BigInt   // Timestamp from pRPC
+
+  createdAt       DateTime @default(now())
+
+  @@index([ipAddress])
+  @@index([createdAt])
+  @@index([ipAddress, createdAt])
+}
+
+// Network-wide statistics snapshot
+model NetworkStatsSnapshot {
+  id              Int      @id @default(autoincrement())
+  totalPNodes     Int
+  activePNodes    Int
+  totalStorage    BigInt
+  usedStorage     BigInt
+  totalShards     Int
+  availableShards Int
+  averageUptime   Float
+  averageLatency  Float
+
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Sync job tracking
+model SyncLog {
+  id            Int      @id @default(autoincrement())
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  nodesQueried  Int      @default(0)
+  nodesSuccess  Int      @default(0)
+  nodesFailed   Int      @default(0)
+  durationMs    Int?
+  error         String?
+
+  @@index([startedAt])
+}

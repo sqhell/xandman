@@ -12,6 +12,12 @@ import type { NetworkStats } from "@/features/network/types";
 
 const USE_DEVNET = process.env.NEXT_PUBLIC_USE_DEVNET === "true";
 const USE_PRPC = process.env.NEXT_PUBLIC_USE_PRPC === "true";
+const USE_DB = process.env.NEXT_PUBLIC_USE_DB === "true";
+
+// Get base path for API calls (handles basePath configuration)
+function getApiBasePath(): string {
+  return process.env.NEXT_PUBLIC_BASE_PATH || "";
+}
 
 interface NetworkApiInterface {
   getStats(): Promise<NetworkStats>;
@@ -122,8 +128,39 @@ const prpcNetworkApi: NetworkApiInterface = {
   },
 };
 
-// Priority: pRPC > DevNet > Mock > Real API
-export const networkApi: NetworkApiInterface = USE_PRPC
+// Database Network API - fetches cached stats from PostgreSQL (fastest!)
+const dbNetworkApi: NetworkApiInterface = {
+  async getStats(): Promise<NetworkStats> {
+    try {
+      const basePath = getApiBasePath();
+      const response = await fetch(`${basePath}/api/db/network`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch from database");
+      }
+
+      const data = await response.json();
+
+      if (!data.success || !data.stats) {
+        throw new Error(data.message || "No data available");
+      }
+
+      return data.stats;
+    } catch (error) {
+      console.error("DB Network API error:", error);
+      // Fallback to pRPC on error
+      return prpcNetworkApi.getStats();
+    }
+  },
+};
+
+// Priority: DB > pRPC > DevNet > Mock > Real API
+export const networkApi: NetworkApiInterface = USE_DB
+  ? dbNetworkApi
+  : USE_PRPC
   ? prpcNetworkApi
   : USE_DEVNET
   ? devnetNetworkApi

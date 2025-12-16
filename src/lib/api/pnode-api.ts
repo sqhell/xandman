@@ -22,9 +22,15 @@ import type {
   UptimeDataPoint,
 } from "@/features/pnodes/types";
 
-// Check if we should use DevNet or pRPC
+// Check which data source to use
 const USE_DEVNET = process.env.NEXT_PUBLIC_USE_DEVNET === "true";
 const USE_PRPC = process.env.NEXT_PUBLIC_USE_PRPC === "true";
+const USE_DB = process.env.NEXT_PUBLIC_USE_DB === "true";
+
+// Get base path for API calls (handles basePath configuration)
+function getApiBasePath(): string {
+  return process.env.NEXT_PUBLIC_BASE_PATH || "";
+}
 
 interface PNodeApiInterface {
   getAll(filters?: PNodeFilters): Promise<PNodeListResponse>;
@@ -362,8 +368,104 @@ const prpcPNodeApi: PNodeApiInterface = {
   },
 };
 
-// Priority: pRPC > DevNet > Real API > Mock
-export const pnodeApi: PNodeApiInterface = USE_PRPC
+// Database API - fetches cached data from PostgreSQL (fastest!)
+const dbPNodeApi: PNodeApiInterface = {
+  async getAll(filters = {}): Promise<PNodeListResponse> {
+    try {
+      const basePath = getApiBasePath();
+      const response = await fetch(`${basePath}/api/db/pnodes`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch from database");
+      }
+
+      const data = await response.json();
+
+      if (!data.success || !data.pnodes) {
+        throw new Error(data.message || "No data available");
+      }
+
+      let pnodes: PNode[] = data.pnodes;
+
+      // Apply filters
+      if (filters.status && filters.status !== "all") {
+        pnodes = pnodes.filter((p) => p.status === filters.status);
+      }
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        pnodes = pnodes.filter(
+          (p) =>
+            p.publicKey.toLowerCase().includes(searchLower) ||
+            p.gossipAddress?.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Sort by uptime descending
+      pnodes.sort((a, b) => b.uptime - a.uptime);
+
+      const page = filters.page || 1;
+      const limit = filters.limit || 25;
+      const start = (page - 1) * limit;
+      const paginated = pnodes.slice(start, start + limit);
+
+      return {
+        pnodes: paginated,
+        total: pnodes.length,
+        page,
+        limit,
+        hasMore: start + limit < pnodes.length,
+      };
+    } catch (error) {
+      console.error("DB API error:", error);
+      // Fallback to pRPC on error
+      return prpcPNodeApi.getAll(filters);
+    }
+  },
+
+  async getByPublicKey(publicKey: string): Promise<PNode> {
+    try {
+      const basePath = getApiBasePath();
+      const response = await fetch(`${basePath}/api/db/pnodes`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch from database");
+      }
+
+      const data = await response.json();
+      const pnode = data.pnodes?.find(
+        (p: PNode) =>
+          p.publicKey === publicKey ||
+          (p as { ipAddress?: string }).ipAddress?.replace(/\./g, "") === publicKey
+      );
+
+      if (pnode) {
+        return pnode;
+      }
+
+      throw new Error("PNode not found");
+    } catch (error) {
+      console.error("DB API error:", error);
+      return generateMockPNode(publicKey);
+    }
+  },
+
+  async getHistory(publicKey: string, days = 30): Promise<UptimeDataPoint[]> {
+    // Database doesn't have historical data yet, generate simulated history
+    const pnode = await dbPNodeApi.getByPublicKey(publicKey);
+    return generateUptimeHistory(days, pnode.uptime);
+  },
+};
+
+// Priority: DB > pRPC > DevNet > Real API > Mock
+export const pnodeApi: PNodeApiInterface = USE_DB
+  ? dbPNodeApi
+  : USE_PRPC
   ? prpcPNodeApi
   : USE_DEVNET
   ? devnetPNodeApi
