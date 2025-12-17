@@ -11,6 +11,11 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+// Set schema search_path for pg pool
+pool.on("connect", (client) => {
+  client.query('SET search_path TO "xandman"');
+});
+
 // Create Prisma adapter
 const adapter = new PrismaPg(pool);
 
